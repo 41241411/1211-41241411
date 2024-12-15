@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老年農民福利津貼核付人數表</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="navbar-placeholder"></div>
+
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">老年農民福利津貼核付人數表</h1>
+
+        <!-- 查詢功能 -->
+        <div class="mb-4">
+            <input type="text" id="search-input" class="form-control" placeholder="搜尋縣市">
+        </div>
+
+        <!-- 資料表格 -->
+        <div class="table-responsive">
+            <table class="table table-striped" id="salary-table">
+                <thead>
+                    <tr>
+                        <th data-sort="序號">序號 <i class="bi bi-sort"></i></th>
+                        <th data-sort="年度">年度 <i class="bi bi-sort"></i></th>
+                        <th data-sort="縣市">縣市 <i class="bi bi-sort"></i></th>
+                        <th data-sort="年齡組別">年齡組別 <i class="bi bi-sort"></i></th>
+                        <th data-sort="性別">性別 <i class="bi bi-sort"></i></th>
+                        <th data-sort="農漁民身分別">農漁民身分別 <i class="bi bi-sort"></i></th>
+                        <th data-sort="核付人數">核付人數 <i class="bi bi-sort"></i></th>
+                    </tr>
+                </thead>
+                <tbody id="salary-table-body">
+                    <!-- 資料將由 JavaScript 動態注入 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let salaryData = [];
+        let currentSortColumn = null;
+        let currentSortDirection = 'original';
+
+        const cityMapping = {
+            "10002": "宜蘭縣",
+            "10004": "新竹縣",
+            "10005": "苗栗縣",
+            "10007": "彰化縣",
+            "10008": "南投縣",
+            "10009": "雲林縣",
+            "10010": "嘉義縣",
+            "10013": "屏東縣",
+            "10014": "臺東縣",
+            "10015": "花蓮縣",
+            "10016": "澎湖縣",
+            "10017": "基隆市",
+            "10018": "新竹市",
+            "10020": "嘉義市",
+            "09007": "連江縣",
+            "09020": "金門縣",
+            "63000": "臺北市",
+            "64000": "高雄市",
+            "65000": "新北市",
+            "66000": "臺中市",
+            "67000": "臺南市",
+            "68000": "桃園市"
+        };
+
+        const ageGroupMapping = {
+            "1": "65-69歲",
+            "2": "70-74歲",
+            "3": "75-79歲",
+            "4": "80-84歲",
+            "5": "85-89歲",
+            "6": "90歲以上"
+        };
+
+        const genderMapping = {
+            "1": "男",
+            "2": "女"
+        };
+
+        const identityMapping = {
+            "1": "農民",
+            "2": "漁民"
+        };
+
+        async function fetchSalaryData() {
+            try {
+                const response = await fetch('https://apiservice.mol.gov.tw/OdService/download/A17010000J-000082-49V');
+                const data = await response.json();
+                salaryData = data;
+                displaySalaryData(salaryData);
+            } catch (error) {
+                console.error('Error fetching salary data:', error);
+            }
+        }
+
+        function displaySalaryData(data) {
+            const tableBody = document.getElementById('salary-table-body');
+            tableBody.innerHTML = '';
+
+            data.forEach(record => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${record.序號 || '無資料'}</td>
+                    <td>${record.年度 || '無資料'}</td>
+                    <td>${cityMapping[record.縣市別代碼] || '未知'}</td>
+                    <td>${ageGroupMapping[record.年齡組別] || '未知'}</td>
+                    <td>${genderMapping[record.性別] || '未知'}</td>
+                    <td>${identityMapping[record.農漁民身分別] || '未知'}</td>
+                    <td>${record.核付人數 || '無資料'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function addSearchFunctionality() {
+            const searchInput = document.getElementById('search-input');
+
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase().trim();
+                const filteredData = salaryData.filter(record => {
+                    const cityName = cityMapping[record.縣市別代碼] || '';
+                    return cityName.toLowerCase().includes(query);
+                });
+                displaySalaryData(filteredData);
+            });
+        }
+
+        function addSortFunctionality() {
+    const headers = document.querySelectorAll('#salary-table thead th');
+
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const sortKey = header.getAttribute('data-sort');
+
+            // 清除其他排序圖示狀態
+            headers.forEach(h => {
+                const icon = h.querySelector('i');
+                icon.className = 'bi bi-sort';
+            });
+
+            if (currentSortColumn === sortKey) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'original';
+            } else {
+                currentSortColumn = sortKey;
+                currentSortDirection = 'asc';
+            }
+
+            let sortedData;
+            if (currentSortDirection === 'asc') {
+                sortedData = [...salaryData].sort((a, b) => {
+                    return (a[sortKey] || '').toString().localeCompare((b[sortKey] || '').toString(), 'zh-Hant');
+                });
+                header.querySelector('i').className = 'bi bi-sort-up'; // 升序圖示
+            } else if (currentSortDirection === 'desc') {
+                sortedData = [...salaryData].sort((a, b) => {
+                    return (b[sortKey] || '').toString().localeCompare((a[sortKey] || '').toString(), 'zh-Hant');
+                });
+                header.querySelector('i').className = 'bi bi-sort-down'; // 降序圖示
+            } else {
+                sortedData = salaryData;
+                header.querySelector('i').className = 'bi bi-sort'; // 重置圖示
+            }
+
+            displaySalaryData(sortedData);
+        });
+    });
+}
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchSalaryData().then(() => {
+                addSearchFunctionality();
+                addSortFunctionality();
+            });
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        fetch('navbar.html')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('navbar-placeholder').innerHTML = data;
+            })
+            .catch(error => console.error('Error loading navbar:', error));
+    </script>
+</body>
+
+</html>
